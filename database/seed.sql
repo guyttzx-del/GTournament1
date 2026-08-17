@@ -1,0 +1,1 @@
+insert into public.seasons (code, name, subtitle, status, capacity, entry_fee, registration_opens_at) values ('RL-001', 'GTournament1 Season 01', 'E-Football Community Tournament', 'open', 32, 25, now()) on conflict (code) do nothing;
