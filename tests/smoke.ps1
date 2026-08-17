@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 $routes = @(
     '/?view=home', '/?view=tournaments', '/?view=rules', '/?view=ranking',
     '/?view=ranking&scope=club', '/?view=ranking&scope=all-time',
-    '/?view=register', '/?view=auth', '/?view=account', '/?view=staff',
+    '/?view=register', '/?view=auth', '/?view=account',
     '/?view=privacy', '/?view=terms', '/?view=contact', '/?view=unknown'
 )
 $assets = @('/assets/style.css', '/assets/app.js', '/assets/logo-gtournament.png')
@@ -20,6 +20,8 @@ function Assert-Status([string]$path) {
 }
 
 foreach ($route in $routes) { Assert-Status $route }
+try { Invoke-WebRequest -Uri ($BaseUrl + '/?view=staff') -UseBasicParsing | Out-Null; $failures.Add('/?view=staff should reject unauthenticated access') } catch { if ($_.Exception.Response.StatusCode.value__ -ne 403) { $failures.Add('/?view=staff did not return 403') } }
+try { Invoke-WebRequest -Uri ($BaseUrl + '/?view=admin') -UseBasicParsing | Out-Null; $failures.Add('/?view=admin should reject unauthenticated access') } catch { if ($_.Exception.Response.StatusCode.value__ -ne 403) { $failures.Add('/?view=admin did not return 403') } }
 foreach ($asset in $assets) { Assert-Status $asset }
 
 $homeResponse = Invoke-WebRequest -Uri ($BaseUrl + '/?view=home') -UseBasicParsing

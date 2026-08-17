@@ -15,15 +15,17 @@ final class RegistrationService
         $profile = ['id' => $userId, 'display_name' => $input['nickname'], 'competition_name' => $input['competition_name'], 'contact_url' => $input['contact_url'], 'club' => $input['club'] ?? null];
         if (!$this->db->rest('profiles', 'id=eq.' . rawurlencode($userId), 'PATCH', $profile)) $this->db->rest('profiles', '', 'POST', [$profile]);
         $existing = $this->db->rest('registrations', 'season_id=eq.' . rawurlencode($seasonId) . '&user_id=eq.' . rawurlencode($userId) . '&limit=1');
-        if ($existing) throw new InvalidArgumentException('คุณสมัครรายการนี้ไว้แล้ว');
-        $rows = $this->db->rest('registrations', '', 'POST', [['season_id' => $seasonId, 'user_id' => $userId, 'competition_name' => $input['competition_name'], 'nickname' => $input['nickname'], 'contact_url' => $input['contact_url'], 'club' => $input['club'] ?? null, 'status' => 'pending_payment']]);
-        $registrationId = (string) ($rows[0]['id'] ?? '');
+        $existingStatus = (string) ($existing[0]['status'] ?? '');
+        if ($existing && !in_array($existingStatus, ['rejected', 'pending_payment'], true)) throw new InvalidArgumentException('คุณสมัครรายการนี้ไว้แล้ว');
+        if ($existing) { $registrationId = (string) $existing[0]['id']; $this->db->rest('registrations', 'id=eq.' . rawurlencode($registrationId), 'PATCH', ['competition_name' => $input['competition_name'], 'nickname' => $input['nickname'], 'contact_url' => $input['contact_url'], 'club' => $input['club'] ?? null, 'status' => 'pending_payment', 'rejection_reason' => null]); }
+        else { $rows = $this->db->rpc('reserve_registration', ['p_season_id' => $seasonId, 'p_user_id' => $userId, 'p_competition_name' => $input['competition_name'], 'p_nickname' => $input['nickname'], 'p_contact_url' => $input['contact_url'], 'p_club' => $input['club'] ?? null]); $registrationId = (string) (($rows[0]['id'] ?? '') ?: ($rows['id'] ?? '')); }
         if ($registrationId === '') throw new RuntimeException('สร้างใบสมัครไม่สำเร็จ');
         $extension = preg_replace('/[^a-z0-9]/', '', strtolower(pathinfo((string) $slip['name'], PATHINFO_EXTENSION))) ?: 'bin';
         $path = $userId . '/' . $registrationId . '-' . bin2hex(random_bytes(12)) . '.' . $extension;
-        $this->db->storageUpload((string) env_value('SUPABASE_SLIP_BUCKET', 'slips'), $path, ['tmp_name' => $slip['tmp_name'], 'type' => $mime]);
+        try { $this->db->storageUpload((string) env_value('SUPABASE_SLIP_BUCKET', 'slips'), $path, ['tmp_name' => $slip['tmp_name'], 'type' => $mime]); } catch (Throwable $e) { throw new RuntimeException('อัปโหลดสลิปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', 0, $e); }
         $this->db->rest('registrations', 'id=eq.' . rawurlencode($registrationId), 'PATCH', ['slip_path' => $path, 'status' => 'pending_review']);
-        $this->db->rest('payments', '', 'POST', [['registration_id' => $registrationId, 'amount' => $fee, 'slip_path' => $path]]);
+        $this->db->rest('payments', 'registration_id=eq.' . rawurlencode($registrationId), 'PATCH', ['amount' => $fee, 'slip_path' => $path, 'status' => 'pending', 'reviewed_by' => null, 'reviewed_at' => null]);
+        if (!$existing) $this->db->rest('payments', '', 'POST', [['registration_id' => $registrationId, 'amount' => $fee, 'slip_path' => $path]]);
         $this->db->rest('audit_logs', '', 'POST', [['actor_id' => $userId, 'action' => 'registration.submitted', 'entity_type' => 'registration', 'entity_id' => $registrationId, 'metadata' => ['status' => 'pending_review']]]);
         return $registrationId;
     }

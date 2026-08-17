@@ -13,3 +13,9 @@ Run domain logic tests with:
 ```powershell
 php tests/domain.php
 ```
+
+Run service contract tests with:
+
+```powershell
+php tests/contracts.php
+```

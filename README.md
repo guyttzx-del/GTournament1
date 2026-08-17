@@ -8,8 +8,8 @@ PHP + Supabase foundation for the GTournament1 community tournament.
 2. Run `database/migrations/001_initial.sql` in the Supabase SQL editor.
 3. Run `database/migrations/002_competition_and_payments.sql` after migration 001.
 4. Run `database/seed.sql` once to create the first open season.
-4. Ensure PHP has `curl`, `fileinfo`, and sessions enabled.
-5. Serve this directory with PHP 7.4+ (PHP 8 recommended).
+4. Ensure PHP 8.1+ has `curl`, `fileinfo`, and sessions enabled.
+5. Serve this directory with PHP 8.1+.
 
 The service role key is intentionally not required by the public app and must never be exposed to the browser. The `slips` bucket is private; uploaded files are addressed by user-scoped paths and are never rendered as public URLs.
 
@@ -21,11 +21,15 @@ The service role key is intentionally not required by the public app and must ne
 - The database enforces one registration per user/season and protects season capacity with a row lock and trigger.
 - Competition domain services generate 8 groups of 4 and 6 round-robin fixtures per group (48 fixtures total).
 - Ranking domain service calculates W=3, D=1, L=0 with points, goal difference and goals-for ordering.
+- Auth service now handles email verification checks, password reset requests, session expiry and local/production cookie defaults.
+- Registration re-submission is supported for rejected/pending-payment entries; migration 003 adds an atomic capacity reservation RPC.
+- Match result submission, confirmation and dispute contracts are available through `MatchService` and migration 004 RPCs.
 
 ## Before production
 
 - Configure email templates and SMTP in Supabase Auth.
 - Add Admin/Staff users in `staff_roles`.
-- Add Staff review screens and signed-URL endpoints.
-- Implement Group Stage/Knockout, match results, ranking formula and result audit actions.
+- Create a staging Supabase project, apply migrations 001–004 and validate RLS with anonymous/player/staff/admin test accounts.
+- Add Admin/Staff users in `staff_roles` and configure Auth email/SMTP.
+- Connect the remaining match/bracket UI to the `MatchService` endpoints and add evidence upload.
 - Run the security, backup/restore and UAT checklist in `SYSTEM_ANALYSIS_AND_DEVELOPMENT_SPEC.md`.

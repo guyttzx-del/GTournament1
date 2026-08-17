@@ -97,9 +97,20 @@ Security controls ที่เพิ่ม:
 - ทำ authenticated end-to-end tests
 - backup/restore drill และ UAT ก่อนเปิดรับเงินจริง
 
-## 8. สถานะการเผยแพร่
+## 8. งานต่อยอดจาก Foundation
 
-การเปลี่ยนแปลงทั้งหมดใน working tree มาจากการพัฒนาตามแผนนี้ และยังไม่ได้ commit/push ณ เวลาบันทึกนี้
+- ปรับ session cookie ให้ local HTTP ใช้งานได้ และ production บังคับ secure cookie ตาม environment
+- เพิ่ม session idle timeout, session regeneration หลัง login และเก็บ refresh token/expiry
+- เพิ่ม `AuthService` สำหรับ signup, verified-email login และ password reset
+- เพิ่ม `SeasonService` ตรวจช่วงเวลาเปิด/ปิดรับสมัครและ registration counters
+- เพิ่ม resubmit flow สำหรับใบสมัครที่ rejected/pending payment และตรวจ accept rules ฝั่ง server
+- เพิ่ม Staff search/status filter, localized registration status และ Admin Season/PromptPay form
+- เพิ่ม `MatchService` สำหรับ submit/confirm/dispute และ migration 003–004 สำหรับ atomic reservation, counters และ match RPCs
+- เพิ่ม contract tests ด้วย mock Supabase client
+
+## 9. สถานะการเผยแพร่
+
+การเปลี่ยนแปลงชุดนี้อยู่ใน working tree สำหรับการตรวจสอบและเตรียมส่ง Draft PR ถัดไป โดยยังต้องทดสอบกับ Supabase staging จริงก่อน merge
 
 ขั้นตอน publish ที่รอทำ:
 
