@@ -12,7 +12,8 @@ require_once __DIR__ . '/Domain/AuthService.php';
 require_once __DIR__ . '/Domain/SeasonService.php';
 require_once __DIR__ . '/Domain/MatchService.php';
 function supabase(): ?SupabaseClient { static $client; if ($client instanceof SupabaseClient) return $client; if (!app_configured()) return null; return $client = new SupabaseClient((string) env_value('SUPABASE_URL'), (string) env_value('SUPABASE_ANON_KEY'), $_SESSION['access_token'] ?? null); }
-function current_user(): ?array { return $_SESSION['user'] ?? null; }
+function refresh_session_if_needed(): void { if (!empty($_SESSION['refresh_token']) && !empty($_SESSION['expires_at']) && (int) $_SESSION['expires_at'] < time() + 60 && app_configured()) { try { establish_session((new AuthService(supabase()))->refresh((string) $_SESSION['refresh_token'])); } catch (Throwable) { $_SESSION = []; } } }
+function current_user(): ?array { refresh_session_if_needed(); return $_SESSION['user'] ?? null; }
 function session_expired(): bool { $timeout = max(300, (int) env_value('SESSION_IDLE_TIMEOUT', '3600')); return isset($_SESSION['last_activity']) && (time() - (int) $_SESSION['last_activity']) > $timeout; }
 if (session_expired()) { $_SESSION = []; session_regenerate_id(true); }
 $_SESSION['last_activity'] = time();

@@ -21,4 +21,8 @@ final class AuthService
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) throw new InvalidArgumentException('อีเมลไม่ถูกต้อง');
         $this->db->auth('recover', 'POST', ['email' => trim($email), 'options' => ['redirect_to' => env_value('SUPABASE_AUTH_REDIRECT_URL')]]);
     }
+    public function refresh(string $refreshToken): array
+    {
+        return $this->db->auth('token?grant_type=refresh_token', 'POST', ['refresh_token' => $refreshToken]);
+    }
 }
