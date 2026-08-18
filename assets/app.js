@@ -1,72 +1,71 @@
-const menuToggle = document.querySelector('.menu-toggle');
-const mainNavigation = document.querySelector('.main-nav');
+/* GTournament1 progressive enhancement layer. */
+const ajaxAdminActions = new Set([
+  'save_season', 'duplicate_season', 'archive_season', 'delete_season',
+  'change_staff_role', 'disable_staff', 'review_registration', 'resolve_match_dispute'
+]);
 
 function closeMenu() {
-  if (!menuToggle || !mainNavigation) return;
-  mainNavigation.classList.remove('is-open');
-  menuToggle.setAttribute('aria-expanded', 'false');
-  menuToggle.setAttribute('aria-label', 'เปิดเมนู');
+  const toggle = document.querySelector('.menu-toggle');
+  const navigation = document.querySelector('.main-nav');
+  if (!toggle || !navigation) return;
+  navigation.classList.remove('is-open');
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-label', 'เปิดเมนู');
 }
 
-menuToggle?.addEventListener('click', () => {
-  if (!mainNavigation) return;
-
-  const isOpen = mainNavigation.classList.toggle('is-open');
-  menuToggle.setAttribute('aria-expanded', String(isOpen));
-  menuToggle.setAttribute('aria-label', isOpen ? 'ปิดเมนู' : 'เปิดเมนู');
-});
-
-mainNavigation?.addEventListener('click', (event) => {
-  if (event.target instanceof HTMLAnchorElement) closeMenu();
-});
-
-window.addEventListener('resize', () => {
-  if (window.innerWidth > 800) closeMenu();
-});
-
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') closeMenu();
-});
-
-const applicantPanel = document.querySelector('.applicant-panel');
-const applicantChoices = [...document.querySelectorAll('.applicant-choice')];
-
-function selectApplicant(type) {
-  if (!applicantPanel || applicantChoices.length < 2) return;
-  const isNew = type === 'new';
-  applicantPanel.classList.toggle('is-new', isNew);
-  const typeField = applicantPanel.querySelector('input[name="applicant_type"]');
-  if (typeField) typeField.value = isNew ? 'new' : 'returning';
-  applicantChoices.forEach((choice, index) => {
-    const selected = isNew ? index === 1 : index === 0;
-    choice.classList.toggle('is-selected', selected);
-    choice.setAttribute('aria-pressed', String(selected));
+function bindMenu() {
+  const toggle = document.querySelector('.menu-toggle');
+  const navigation = document.querySelector('.main-nav');
+  if (!toggle || !navigation || toggle.dataset.bound === 'true') return;
+  toggle.dataset.bound = 'true';
+  toggle.addEventListener('click', () => {
+    const isOpen = navigation.classList.toggle('is-open');
+    toggle.setAttribute('aria-expanded', String(isOpen));
+    toggle.setAttribute('aria-label', isOpen ? 'ปิดเมนู' : 'เปิดเมนู');
+  });
+  navigation.addEventListener('click', (event) => {
+    if (event.target instanceof HTMLAnchorElement) closeMenu();
   });
 }
 
-if (applicantPanel && applicantChoices.length >= 2) {
-  applicantChoices.forEach((choice, index) => {
+function bindApplicantForm() {
+  const panel = document.querySelector('.applicant-panel');
+  const choices = [...document.querySelectorAll('.applicant-choice')];
+  if (!panel || choices.length < 2 || panel.dataset.bound === 'true') return;
+  panel.dataset.bound = 'true';
+  const selectApplicant = (type) => {
+    const isNew = type === 'new';
+    panel.classList.toggle('is-new', isNew);
+    const typeField = panel.querySelector('input[name="applicant_type"]');
+    if (typeField) typeField.value = isNew ? 'new' : 'returning';
+    choices.forEach((choice, index) => {
+      const selected = isNew ? index === 1 : index === 0;
+      choice.classList.toggle('is-selected', selected);
+      choice.setAttribute('aria-pressed', String(selected));
+    });
+  };
+  choices.forEach((choice, index) => {
     choice.setAttribute('aria-pressed', String(index === 0));
     choice.addEventListener('click', () => selectApplicant(index === 1 ? 'new' : 'existing'));
   });
   selectApplicant('existing');
 }
 
-const profileFile = document.querySelector('input[name="profile_image"]');
-const profileUpload = profileFile?.closest('.profile-upload');
-
-if (profileFile && profileUpload) {
+function bindProfilePreview() {
+  const file = document.querySelector('input[name="profile_image"]');
+  const upload = file?.closest('.profile-upload');
+  if (!file || !upload || file.dataset.bound === 'true') return;
+  file.dataset.bound = 'true';
+  const standard = () => '<div class="profile-preview-avatar" aria-hidden="true">GT</div><span>รูปโปรไฟล์มาตรฐาน</span>';
   const preview = document.createElement('div');
   preview.className = 'profile-preview';
-  preview.innerHTML = '<div class="profile-preview-avatar" aria-hidden="true">GT</div><span>รูปโปรไฟล์มาตรฐาน</span>';
-  profileUpload.insertBefore(preview, profileFile);
-
-  profileFile.addEventListener('change', () => {
-    const file = profileFile.files?.[0];
-    const allowed = ['image/jpeg', 'image/png'];
-    if (!file || !allowed.includes(file.type) || file.size > 5 * 1024 * 1024) {
-      profileFile.value = '';
-      preview.innerHTML = '<div class="profile-preview-avatar" aria-hidden="true">GT</div><span>รูปโปรไฟล์มาตรฐาน</span>';
+  preview.innerHTML = standard();
+  upload.insertBefore(preview, file);
+  file.addEventListener('change', () => {
+    const selected = file.files?.[0];
+    if (!selected || !['image/jpeg', 'image/png'].includes(selected.type) || selected.size > 5 * 1024 * 1024) {
+      file.value = '';
+      preview.innerHTML = standard();
       return;
     }
     const reader = new FileReader();
@@ -75,48 +74,50 @@ if (profileFile && profileUpload) {
       image.src = String(reader.result || '');
       image.alt = 'ตัวอย่างรูปโปรไฟล์ที่เลือก';
       const filename = document.createElement('span');
-      filename.textContent = file.name;
+      filename.textContent = selected.name;
       preview.replaceChildren(image, filename);
     });
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(selected);
   });
 }
 
-const playerSearchCard = document.querySelector('.applicant-search-card');
-const playerSearchButton = playerSearchCard?.querySelector('button');
-const playerSearchInput = playerSearchCard?.querySelector('input[name="existing_player_query"]');
-if (playerSearchCard && playerSearchButton && playerSearchInput) {
-  playerSearchButton.addEventListener('click', async () => {
-    const query = playerSearchInput.value.trim();
+function bindPlayerSearch() {
+  const card = document.querySelector('.applicant-search-card');
+  const button = card?.querySelector('button');
+  const input = card?.querySelector('input[name="existing_player_query"]');
+  if (!card || !button || !input || button.dataset.bound === 'true') return;
+  button.dataset.bound = 'true';
+  button.addEventListener('click', async () => {
+    const query = input.value.trim();
     if (query.length < 2) return;
-    playerSearchButton.disabled = true;
+    button.disabled = true;
     try {
       const response = await fetch(`?view=player-search&q=${encodeURIComponent(query)}`, { headers: { Accept: 'application/json' } });
       const players = await response.json();
-      let results = playerSearchCard.querySelector('.public-player-results');
-      if (!results) { results = document.createElement('div'); results.className = 'public-player-results'; playerSearchCard.append(results); }
+      let results = card.querySelector('.public-player-results');
+      if (!results) { results = document.createElement('div'); results.className = 'public-player-results'; card.append(results); }
       results.replaceChildren();
       if (!players.length) { results.textContent = 'ไม่พบผู้เล่นที่ตรงกัน'; return; }
       players.forEach((player) => {
-        const button = document.createElement('button');
-        button.type = 'button'; button.className = 'public-player-result';
+        const result = document.createElement('button');
+        result.type = 'button'; result.className = 'public-player-result';
         const strong = document.createElement('strong'); strong.textContent = player.competition_name || '';
         const span = document.createElement('span'); span.textContent = `${player.nickname || ''} · ${player.club || 'ไม่ระบุคลับ'}`;
-        button.append(strong, span);
-        button.addEventListener('click', () => {
-          const form = playerSearchCard.closest('form');
+        result.append(strong, span);
+        result.addEventListener('click', () => {
+          const form = card.closest('form');
           if (!form) return;
           let hidden = form.querySelector('input[name="existing_player_id"]');
           if (!hidden) { hidden = document.createElement('input'); hidden.type = 'hidden'; hidden.name = 'existing_player_id'; form.append(hidden); }
           hidden.value = player.id || '';
-          playerSearchInput.value = player.competition_name || '';
+          input.value = player.competition_name || '';
           results.querySelectorAll('button').forEach((item) => item.classList.remove('is-selected'));
-          button.classList.add('is-selected');
+          result.classList.add('is-selected');
         });
-        results.append(button);
+        results.append(result);
       });
-    } catch { /* Keep the registration form usable when search is unavailable. */ }
-    finally { playerSearchButton.disabled = false; }
+    } catch { /* Keep registration usable when search is unavailable. */ }
+    finally { button.disabled = false; }
   });
 }
 
@@ -138,24 +139,13 @@ function ensureDeleteSeasonButtons() {
   });
 }
 
-ensureDeleteSeasonButtons();
-
-const ajaxAdminActions = new Set([
-  'save_season', 'duplicate_season', 'archive_season', 'delete_season',
-  'change_staff_role', 'disable_staff', 'review_registration', 'resolve_match_dispute'
-]);
-
 function showAjaxStatus(message, tone = 'error') {
   let status = document.querySelector('[data-ajax-status]');
   if (!status) {
     status = document.createElement('div');
-    status.dataset.ajaxStatus = 'true';
-    status.setAttribute('role', 'status');
-    document.body.append(status);
+    status.dataset.ajaxStatus = 'true'; status.setAttribute('role', 'status'); document.body.append(status);
   }
-  status.textContent = message;
-  status.dataset.tone = tone;
-  status.hidden = false;
+  status.textContent = message; status.dataset.tone = tone; status.hidden = false;
   window.clearTimeout(Number(status.dataset.timer || 0));
   status.dataset.timer = String(window.setTimeout(() => { status.hidden = true; }, 4500));
 }
@@ -174,46 +164,68 @@ function setFormBusy(form, busy) {
   });
 }
 
-async function submitAdminFormWithoutReload(form) {
-  const response = await fetch(form.action || window.location.href, {
-    method: 'POST',
-    body: new FormData(form),
-    credentials: 'same-origin',
-    headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'text/html' }
-  });
-  const html = await response.text();
-  if (!response.ok) throw new Error(response.status === 403 ? 'ไม่มีสิทธิ์ดำเนินการรายการนี้' : 'ระบบไม่สามารถดำเนินการได้ในขณะนี้');
-  const parsed = new DOMParser().parseFromString(html, 'text/html');
-  const nextMain = parsed.querySelector('main');
+function refreshPageFragment(parsed, url) {
   const currentMain = document.querySelector('main');
-  if (!nextMain || !currentMain) throw new Error('ไม่พบพื้นที่แสดงผลหลังดำเนินการ');
+  const nextMain = parsed.querySelector('main');
+  if (!currentMain || !nextMain) throw new Error('ไม่พบพื้นที่แสดงผลหลังดำเนินการ');
   currentMain.innerHTML = nextMain.innerHTML;
-  if (response.url) window.history.replaceState({}, '', response.url);
+  const currentTopbar = document.querySelector('.topbar');
+  const nextTopbar = parsed.querySelector('.topbar');
+  if (currentTopbar && nextTopbar) currentTopbar.innerHTML = nextTopbar.innerHTML;
+  if (url) window.history.replaceState({}, '', url);
   document.title = parsed.title || document.title;
-  ensureDeleteSeasonButtons();
+  bindMenu(); bindApplicantForm(); bindProfilePreview(); bindPlayerSearch(); ensureDeleteSeasonButtons();
   currentMain.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+async function requestPage(url, options = {}) {
+  const response = await fetch(url, { credentials: 'same-origin', ...options });
+  const html = await response.text();
+  if (!response.ok) throw new Error(response.status === 403 ? 'ไม่มีสิทธิ์เข้าถึงหน้านี้' : 'ระบบไม่สามารถโหลดข้อมูลได้ในขณะนี้');
+  const parsed = new DOMParser().parseFromString(html, 'text/html');
+  refreshPageFragment(parsed, response.url);
+}
+
+function isInternalLink(link) {
+  if (!link || link.target === '_blank' || link.hasAttribute('download') || link.getAttribute('href')?.startsWith('#')) return false;
+  try {
+    const url = new URL(link.href, window.location.href);
+    return url.origin === window.location.origin && !url.pathname.includes('/assets/');
+  } catch { return false; }
+}
+
+document.addEventListener('click', async (event) => {
+  const link = event.target instanceof Element ? event.target.closest('a') : null;
+  if (!isInternalLink(link) || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  if (document.body.dataset.pageBusy === 'true') return;
+  document.body.dataset.pageBusy = 'true'; document.body.classList.add('is-loading');
+  try { await requestPage(link.href); }
+  catch (error) { showAjaxStatus(error instanceof Error ? error.message : 'ระบบขัดข้อง กรุณาลองใหม่'); }
+  finally { document.body.dataset.pageBusy = 'false'; document.body.classList.remove('is-loading'); }
+});
 
 document.addEventListener('submit', async (event) => {
   const form = event.target;
   if (!(form instanceof HTMLFormElement)) return;
-  if (form.dataset.deleteSeason === 'true' && !window.confirm('ยืนยันลบ Season นี้? ระบบจะลบได้เฉพาะ Season ที่ไม่มีใบสมัครหรือ Match เท่านั้น')) {
-    event.preventDefault();
-    return;
-  }
+  if (form.dataset.deleteSeason === 'true' && !window.confirm('ยืนยันลบ Season นี้? ระบบจะลบได้เฉพาะ Season ที่ไม่มีใบสมัครหรือ Match เท่านั้น')) { event.preventDefault(); return; }
+  const method = (form.method || 'get').toLowerCase();
   const action = form.querySelector('input[name="action"]')?.value;
-  if (!ajaxAdminActions.has(action)) return;
-  event.preventDefault();
-  if (form.dataset.ajaxBusy === 'true') return;
-  form.dataset.ajaxBusy = 'true';
-  setFormBusy(form, true);
+  const shouldAjax = method === 'post' || (method === 'get' && form.closest('main'));
+  if (!shouldAjax || form.dataset.ajaxBusy === 'true') return;
+  event.preventDefault(); form.dataset.ajaxBusy = 'true'; setFormBusy(form, true);
   try {
-    await submitAdminFormWithoutReload(form);
-    showAjaxStatus('ดำเนินการสำเร็จ', 'success');
-  } catch (error) {
-    showAjaxStatus(error instanceof Error ? error.message : 'ระบบขัดข้อง กรุณาลองใหม่', 'error');
-  } finally {
-    form.dataset.ajaxBusy = 'false';
-    if (document.body.contains(form)) setFormBusy(form, false);
-  }
+    const body = method === 'post' ? new FormData(form) : undefined;
+    const formAction = form.action || window.location.href;
+    const target = new URL(formAction, window.location.href);
+    if (method === 'get') target.search = new URLSearchParams(new FormData(form)).toString();
+    const url = method === 'get' ? target.href : formAction;
+    await requestPage(url, { method: method.toUpperCase(), body, headers: method === 'post' ? { 'X-Requested-With': 'XMLHttpRequest', Accept: 'text/html' } : { Accept: 'text/html' } });
+    showAjaxStatus(action ? 'ดำเนินการสำเร็จ' : 'โหลดข้อมูลสำเร็จ', 'success');
+  } catch (error) { showAjaxStatus(error instanceof Error ? error.message : 'ระบบขัดข้อง กรุณาลองใหม่'); }
+  finally { form.dataset.ajaxBusy = 'false'; if (document.body.contains(form)) setFormBusy(form, false); }
 });
+
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeMenu(); });
+window.addEventListener('resize', () => { if (window.innerWidth > 800) closeMenu(); });
+bindMenu(); bindApplicantForm(); bindProfilePreview(); bindPlayerSearch(); ensureDeleteSeasonButtons();
