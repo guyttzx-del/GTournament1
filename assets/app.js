@@ -181,9 +181,13 @@ function refreshPageFragment(parsed, url) {
 async function requestPage(url, options = {}) {
   const response = await fetch(url, { credentials: 'same-origin', ...options });
   const html = await response.text();
-  if (!response.ok) throw new Error(response.status === 403 ? 'ไม่มีสิทธิ์เข้าถึงหน้านี้' : 'ระบบไม่สามารถโหลดข้อมูลได้ในขณะนี้');
   const parsed = new DOMParser().parseFromString(html, 'text/html');
-  refreshPageFragment(parsed, response.url);
+  if (parsed.querySelector('main')) {
+    refreshPageFragment(parsed, response.url);
+    return response.ok;
+  }
+  if (!response.ok) throw new Error(response.status === 403 ? 'ไม่มีสิทธิ์เข้าถึงหน้านี้' : `ระบบตอบกลับผิดพลาด (${response.status})`);
+  throw new Error('ไม่พบพื้นที่แสดงผลหลังดำเนินการ');
 }
 
 function isInternalLink(link) {
@@ -200,7 +204,10 @@ document.addEventListener('click', async (event) => {
   event.preventDefault();
   if (document.body.dataset.pageBusy === 'true') return;
   document.body.dataset.pageBusy = 'true'; document.body.classList.add('is-loading');
-  try { await requestPage(link.href); }
+  try {
+    const ok = await requestPage(link.href);
+    if (!ok) showAjaxStatus('ระบบหลักยังไม่พร้อม กรุณาตรวจสอบข้อความบนหน้าเว็บ', 'error');
+  }
   catch (error) { showAjaxStatus(error instanceof Error ? error.message : 'ระบบขัดข้อง กรุณาลองใหม่'); }
   finally { document.body.dataset.pageBusy = 'false'; document.body.classList.remove('is-loading'); }
 });
@@ -220,8 +227,8 @@ document.addEventListener('submit', async (event) => {
     const target = new URL(formAction, window.location.href);
     if (method === 'get') target.search = new URLSearchParams(new FormData(form)).toString();
     const url = method === 'get' ? target.href : formAction;
-    await requestPage(url, { method: method.toUpperCase(), body, headers: method === 'post' ? { 'X-Requested-With': 'XMLHttpRequest', Accept: 'text/html' } : { Accept: 'text/html' } });
-    showAjaxStatus(action ? 'ดำเนินการสำเร็จ' : 'โหลดข้อมูลสำเร็จ', 'success');
+    const ok = await requestPage(url, { method: method.toUpperCase(), body, headers: method === 'post' ? { 'X-Requested-With': 'XMLHttpRequest', Accept: 'text/html' } : { Accept: 'text/html' } });
+    showAjaxStatus(ok ? (action ? 'ดำเนินการสำเร็จ' : 'โหลดข้อมูลสำเร็จ') : 'ระบบหลักยังไม่พร้อม กรุณาตรวจสอบข้อความบนหน้าเว็บ', ok ? 'success' : 'error');
   } catch (error) { showAjaxStatus(error instanceof Error ? error.message : 'ระบบขัดข้อง กรุณาลองใหม่'); }
   finally { form.dataset.ajaxBusy = 'false'; if (document.body.contains(form)) setFormBusy(form, false); }
 });
