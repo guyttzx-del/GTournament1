@@ -1443,3 +1443,9 @@ body { line-height:1.72 }
 @media (max-width:900px){.admin-dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-dashboard-grid>.register-card:nth-last-child(-n+2){grid-column:span 2}}
 @media (max-width:560px){.admin-dashboard-grid{grid-template-columns:1fr}.admin-dashboard-grid>.register-card:nth-last-child(-n+2){grid-column:auto}.admin-staff-list>article{align-items:flex-start;flex-direction:column}.admin-season-item .button-row{width:100%}}
 .public-player-results{display:grid;gap:8px;margin-top:12px}.public-player-result{display:flex;justify-content:space-between;gap:12px;align-items:center;width:100%;padding:12px 14px;border:1px solid var(--border,#27334e);border-radius:10px;background:rgba(255,255,255,.03);color:inherit;text-align:left;cursor:pointer}.public-player-result:hover,.public-player-result.is-selected{border-color:var(--accent,#cf37ff);background:rgba(207,55,255,.1)}.public-player-result span{color:var(--text-secondary,#aab6d0);font-size:.85rem}
+
+/* Background form actions: keep the page stable while an Admin action is processed. */
+.is-loading { opacity:.68; pointer-events:none; }
+[data-ajax-status] { position:fixed; right:20px; bottom:20px; z-index:1000; max-width:min(360px,calc(100vw - 40px)); padding:12px 16px; border:1px solid #6f2940; border-radius:10px; background:#17101a; color:#fff; box-shadow:0 12px 30px #0008; font-size:.92rem; }
+[data-ajax-status][data-tone="success"] { border-color:#2f9b70; background:#0e201a; }
+@media (max-width:560px) { [data-ajax-status] { right:12px; bottom:12px; } }

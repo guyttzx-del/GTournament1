@@ -120,22 +120,100 @@ if (playerSearchCard && playerSearchButton && playerSearchInput) {
   });
 }
 
-document.querySelectorAll('.admin-season-item').forEach((seasonCard) => {
-  const editLink = seasonCard.querySelector('a[href*="edit_season="]');
-  const csrfSource = seasonCard.querySelector('input[name="_csrf"]');
-  if (!editLink || !csrfSource || seasonCard.querySelector('[data-delete-season]')) return;
-  const seasonId = new URL(editLink.href, window.location.href).searchParams.get('edit_season');
-  if (!seasonId) return;
-  const form = document.createElement('form');
-  form.method = 'post'; form.dataset.deleteSeason = 'true';
-  form.innerHTML = '<input type="hidden" name="action" value="delete_season"><input type="hidden" name="season_id"><input type="hidden" name="_csrf">';
-  form.querySelector('input[name="season_id"]').value = seasonId;
-  form.querySelector('input[name="_csrf"]').value = csrfSource.value;
-  const button = document.createElement('button');
-  button.type = 'submit'; button.className = 'btn btn-outline'; button.textContent = 'ลบ Season'; button.dataset.deleteSeason = 'true';
-  form.append(button); seasonCard.querySelector('.button-row')?.append(form);
-});
+function ensureDeleteSeasonButtons() {
+  document.querySelectorAll('.admin-season-item').forEach((seasonCard) => {
+    const editLink = seasonCard.querySelector('a[href*="edit_season="]');
+    const csrfSource = seasonCard.querySelector('input[name="_csrf"]');
+    if (!editLink || !csrfSource || seasonCard.querySelector('[data-delete-season]')) return;
+    const seasonId = new URL(editLink.href, window.location.href).searchParams.get('edit_season');
+    if (!seasonId) return;
+    const form = document.createElement('form');
+    form.method = 'post'; form.dataset.deleteSeason = 'true';
+    form.innerHTML = '<input type="hidden" name="action" value="delete_season"><input type="hidden" name="season_id"><input type="hidden" name="_csrf">';
+    form.querySelector('input[name="season_id"]').value = seasonId;
+    form.querySelector('input[name="_csrf"]').value = csrfSource.value;
+    const button = document.createElement('button');
+    button.type = 'submit'; button.className = 'btn btn-outline'; button.textContent = 'ลบ Season'; button.dataset.deleteSeason = 'true';
+    form.append(button); seasonCard.querySelector('.button-row')?.append(form);
+  });
+}
 
-document.addEventListener('submit', (event) => {
-  if (event.target instanceof HTMLFormElement && event.target.dataset.deleteSeason === 'true' && !window.confirm('ยืนยันลบ Season นี้? ระบบจะลบได้เฉพาะ Season ที่ไม่มีใบสมัครหรือ Match เท่านั้น')) event.preventDefault();
+ensureDeleteSeasonButtons();
+
+const ajaxAdminActions = new Set([
+  'save_season', 'duplicate_season', 'archive_season', 'delete_season',
+  'change_staff_role', 'disable_staff', 'review_registration', 'resolve_match_dispute'
+]);
+
+function showAjaxStatus(message, tone = 'error') {
+  let status = document.querySelector('[data-ajax-status]');
+  if (!status) {
+    status = document.createElement('div');
+    status.dataset.ajaxStatus = 'true';
+    status.setAttribute('role', 'status');
+    document.body.append(status);
+  }
+  status.textContent = message;
+  status.dataset.tone = tone;
+  status.hidden = false;
+  window.clearTimeout(Number(status.dataset.timer || 0));
+  status.dataset.timer = String(window.setTimeout(() => { status.hidden = true; }, 4500));
+}
+
+function setFormBusy(form, busy) {
+  form.classList.toggle('is-loading', busy);
+  form.querySelectorAll('button, input[type="submit"]').forEach((control) => {
+    if (busy) {
+      control.dataset.originalLabel = control.textContent || control.value || '';
+      if (control.tagName === 'BUTTON') control.textContent = 'กำลังดำเนินการ…';
+    } else if (control.dataset.originalLabel) {
+      if (control.tagName === 'BUTTON') control.textContent = control.dataset.originalLabel;
+      delete control.dataset.originalLabel;
+    }
+    control.disabled = busy;
+  });
+}
+
+async function submitAdminFormWithoutReload(form) {
+  const response = await fetch(form.action || window.location.href, {
+    method: 'POST',
+    body: new FormData(form),
+    credentials: 'same-origin',
+    headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'text/html' }
+  });
+  const html = await response.text();
+  if (!response.ok) throw new Error(response.status === 403 ? 'ไม่มีสิทธิ์ดำเนินการรายการนี้' : 'ระบบไม่สามารถดำเนินการได้ในขณะนี้');
+  const parsed = new DOMParser().parseFromString(html, 'text/html');
+  const nextMain = parsed.querySelector('main');
+  const currentMain = document.querySelector('main');
+  if (!nextMain || !currentMain) throw new Error('ไม่พบพื้นที่แสดงผลหลังดำเนินการ');
+  currentMain.innerHTML = nextMain.innerHTML;
+  if (response.url) window.history.replaceState({}, '', response.url);
+  document.title = parsed.title || document.title;
+  ensureDeleteSeasonButtons();
+  currentMain.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+document.addEventListener('submit', async (event) => {
+  const form = event.target;
+  if (!(form instanceof HTMLFormElement)) return;
+  if (form.dataset.deleteSeason === 'true' && !window.confirm('ยืนยันลบ Season นี้? ระบบจะลบได้เฉพาะ Season ที่ไม่มีใบสมัครหรือ Match เท่านั้น')) {
+    event.preventDefault();
+    return;
+  }
+  const action = form.querySelector('input[name="action"]')?.value;
+  if (!ajaxAdminActions.has(action)) return;
+  event.preventDefault();
+  if (form.dataset.ajaxBusy === 'true') return;
+  form.dataset.ajaxBusy = 'true';
+  setFormBusy(form, true);
+  try {
+    await submitAdminFormWithoutReload(form);
+    showAjaxStatus('ดำเนินการสำเร็จ', 'success');
+  } catch (error) {
+    showAjaxStatus(error instanceof Error ? error.message : 'ระบบขัดข้อง กรุณาลองใหม่', 'error');
+  } finally {
+    form.dataset.ajaxBusy = 'false';
+    if (document.body.contains(form)) setFormBusy(form, false);
+  }
 });
