@@ -233,7 +233,7 @@ document.addEventListener('submit', async (event) => {
     const target = new URL(formAction, window.location.href);
     if (method === 'get') target.search = new URLSearchParams(new FormData(form)).toString();
     const url = method === 'get' ? target.href : formAction;
-    const ok = await requestPage(url, { method: method.toUpperCase(), body, headers: method === 'post' ? { 'X-Requested-With': 'XMLHttpRequest', Accept: 'text/html' } : { Accept: 'text/html' } });
+    const ok = await requestPage(url, { method: method.toUpperCase(), body, headers: { Accept: 'text/html' } });
     showAjaxStatus(ok ? (action ? 'ดำเนินการสำเร็จ' : 'โหลดข้อมูลสำเร็จ') : 'ระบบหลักยังไม่พร้อม กรุณาตรวจสอบข้อความบนหน้าเว็บ', ok ? 'success' : 'error');
   } catch (error) { showAjaxStatus(error instanceof Error ? error.message : 'ระบบขัดข้อง กรุณาลองใหม่'); }
   finally { form.dataset.ajaxBusy = 'false'; if (document.body.contains(form)) setFormBusy(form, false); }
