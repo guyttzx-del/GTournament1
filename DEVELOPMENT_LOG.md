@@ -2,7 +2,7 @@
 
 วันที่บันทึก: 17 สิงหาคม 2026  
 Repository: `guyttzx-del/GTournament1`  
-Branch ปัจจุบัน: `main`
+Branch ปัจจุบัน: `agent/gtournament-match-workflow`
 
 ## 1. จุดเริ่มต้น
 
@@ -86,16 +86,13 @@ Security controls ที่เพิ่ม:
 - Smoke tests ล่าสุด: `14 routes + 3 assets` ผ่าน
 - Domain tests ล่าสุด: ผ่าน
 
-## 7. สิ่งที่ยังต้องทำ
+## 7. สิ่งที่ยังต้องทำก่อนเปิดจริง
 
-- สร้าง Supabase project จริงและตั้งค่า Auth/SMTP/Storage
-- รัน migrations และ seed ใน Supabase
-- เพิ่ม Admin UI สำหรับ Season และ PromptPay settings
-- เชื่อม CompetitionService กับ Supabase เพื่อสร้าง groups/fixtures จริง
-- เพิ่ม Match result submission, confirmation และ dispute UI/API
-- เชื่อม RankingService กับ match results จริง
-- ทำ authenticated end-to-end tests
-- backup/restore drill และ UAT ก่อนเปิดรับเงินจริง
+- สร้าง VPS Ubuntu 24.04 และติดตั้ง Nginx/PHP-FPM ตาม `deploy/UBUNTU_DEPLOY.md`
+- ตั้ง DNS/TLS ของ `gtournament.online` และตรวจ `?view=health` จาก public network
+- ตั้งค่า Supabase Auth/SMTP/redirect URL และเพิ่ม Staff/Admin จริง
+- สร้าง Season/Registration/Match ทดสอบ แล้วทำ authenticated end-to-end/UAT
+- ทำ backup/restore drill และตรวจ logs ก่อนเปิดรับผู้ใช้จริง
 
 ## 8. งานต่อยอดจาก Foundation
 
@@ -105,12 +102,16 @@ Security controls ที่เพิ่ม:
 - เพิ่ม `SeasonService` ตรวจช่วงเวลาเปิด/ปิดรับสมัครและ registration counters
 - เพิ่ม resubmit flow สำหรับใบสมัครที่ rejected/pending payment และตรวจ accept rules ฝั่ง server
 - เพิ่ม Staff search/status filter, localized registration status และ Admin Season/PromptPay form
-- เพิ่ม `MatchService` สำหรับ submit/confirm/dispute และ migration 003–004 สำหรับ atomic reservation, counters และ match RPCs
-- เพิ่ม contract tests ด้วย mock Supabase client
+- เพิ่ม `MatchService` สำหรับ submit/confirm/dispute/evidence และ migration 003–005 สำหรับ atomic reservation, counters, match RPCs และ private evidence storage
+- เพิ่ม contract tests ด้วย mock Supabase client และ local mock provider สำหรับทดสอบหลาย request ต่อเนื่อง
+- เพิ่ม production hardening: fail-closed environment validation, secret-free health endpoint, POST rate limiting และ production error logging
+- เพิ่ม migration 006 สำหรับ trusted audit logging, atomic match result submission และตรวจสิทธิ์ Storage ตาม Match
+- เพิ่ม migration 007 ปิด anonymous RPC execution, ปิด direct match-result writes และเพิ่ม participant match access policy
+- เพิ่ม Nginx/PHP-FPM templates, production PHP settings, domain-specific env template และ VPS deployment guide ใน `deploy/`
 
 ## 9. สถานะการเผยแพร่
 
-การเปลี่ยนแปลงชุดนี้อยู่ใน working tree สำหรับการตรวจสอบและเตรียมส่ง Draft PR ถัดไป โดยยังต้องทดสอบกับ Supabase staging จริงก่อน merge
+การเปลี่ยนแปลงชุดนี้อยู่ใน working tree บน branch งาน โดยผ่านการตรวจ local และตรวจ schema/RPC/RLS บน Supabase project แล้ว แต่ยังรอ VPS, TLS, SMTP และ authenticated UAT ก่อนเปิด public production
 
 ขั้นตอน publish ที่รอทำ:
 

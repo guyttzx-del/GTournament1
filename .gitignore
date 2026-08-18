@@ -16,3 +16,7 @@ supabase/.temp/
 !/storage/logs/.gitkeep
 /storage/sessions/*
 !/storage/sessions/.gitkeep
+/storage/mock/*
+!/storage/mock/.gitkeep
+/storage/rate-limit/*
+!/storage/rate-limit/.gitkeep

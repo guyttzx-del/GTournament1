@@ -26,7 +26,7 @@ final class RegistrationService
         $this->db->rest('registrations', 'id=eq.' . rawurlencode($registrationId), 'PATCH', ['slip_path' => $path, 'status' => 'pending_review']);
         $this->db->rest('payments', 'registration_id=eq.' . rawurlencode($registrationId), 'PATCH', ['amount' => $fee, 'slip_path' => $path, 'status' => 'pending', 'reviewed_by' => null, 'reviewed_at' => null]);
         if (!$existing) $this->db->rest('payments', '', 'POST', [['registration_id' => $registrationId, 'amount' => $fee, 'slip_path' => $path]]);
-        $this->db->rest('audit_logs', '', 'POST', [['actor_id' => $userId, 'action' => 'registration.submitted', 'entity_type' => 'registration', 'entity_id' => $registrationId, 'metadata' => ['status' => 'pending_review']]]);
+        $this->db->rpc('append_audit_log', ['p_actor_id' => $userId, 'p_action' => 'registration.submitted', 'p_entity_type' => 'registration', 'p_entity_id' => $registrationId, 'p_metadata' => ['status' => 'pending_review']]);
         return $registrationId;
     }
 }
