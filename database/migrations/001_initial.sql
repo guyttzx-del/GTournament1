@@ -1,0 +1,36 @@
+create extension if not exists pgcrypto;
+create type public.registration_status as enum ('draft','pending_payment','pending_review','approved','rejected','cancelled');
+create type public.staff_role as enum ('admin','staff');
+create table public.profiles (id uuid primary key references auth.users(id) on delete cascade, display_name text not null, competition_name text, contact_url text, club text, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+create table public.staff_roles (user_id uuid primary key references auth.users(id) on delete cascade, role public.staff_role not null, created_at timestamptz not null default now());
+create table public.seasons (id uuid primary key default gen_random_uuid(), code text unique not null, name text not null, subtitle text, status text not null default 'draft' check (status in ('draft','open','closed','running','completed')), capacity integer not null check (capacity > 0), entry_fee numeric(10,2) not null default 0, registration_opens_at timestamptz, registration_closes_at timestamptz, created_at timestamptz not null default now());
+create table public.registrations (id uuid primary key default gen_random_uuid(), season_id uuid not null references public.seasons(id), user_id uuid not null references auth.users(id), competition_name text not null, nickname text not null, contact_url text not null, club text, status public.registration_status not null default 'pending_payment', slip_path text, rejection_reason text, created_at timestamptz not null default now(), updated_at timestamptz not null default now(), unique (season_id, user_id));
+create table public.payments (id uuid primary key default gen_random_uuid(), registration_id uuid unique not null references public.registrations(id) on delete cascade, amount numeric(10,2) not null, slip_path text not null, status text not null default 'pending' check (status in ('pending','approved','rejected')), reviewed_by uuid references auth.users(id), reviewed_at timestamptz, created_at timestamptz not null default now());
+create table public.audit_logs (id bigint generated always as identity primary key, actor_id uuid references auth.users(id), action text not null, entity_type text not null, entity_id uuid, metadata jsonb not null default '{}'::jsonb, created_at timestamptz not null default now());
+alter table public.profiles enable row level security; alter table public.staff_roles enable row level security; alter table public.seasons enable row level security; alter table public.registrations enable row level security; alter table public.payments enable row level security; alter table public.audit_logs enable row level security;
+create policy "public can read open seasons" on public.seasons for select using (status in ('open','closed','running','completed'));
+create policy "users read own profile" on public.profiles for select using (auth.uid() = id);
+create policy "users manage own profile" on public.profiles for all using (auth.uid() = id) with check (auth.uid() = id);
+create policy "users read own staff role" on public.staff_roles for select using (auth.uid() = user_id);
+create policy "users read own registrations" on public.registrations for select using (auth.uid() = user_id);
+create policy "users create own registrations" on public.registrations for insert with check (auth.uid() = user_id);
+create policy "users update own registrations" on public.registrations for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "users read own payments" on public.payments for select using (exists (select 1 from public.registrations r where r.id = registration_id and r.user_id = auth.uid()));
+create or replace function public.is_staff() returns boolean language sql stable security definer set search_path = public as $$ select exists (select 1 from public.staff_roles where user_id = auth.uid()); $$;
+create policy "staff read registrations" on public.registrations for select using (public.is_staff());
+create policy "staff review registrations" on public.registrations for update using (public.is_staff()) with check (public.is_staff());
+create policy "staff read payments" on public.payments for select using (public.is_staff());
+create policy "staff review payments" on public.payments for update using (public.is_staff()) with check (public.is_staff());
+create policy "users write own audit" on public.audit_logs for insert with check (auth.uid() = actor_id);
+create or replace function public.enforce_season_capacity() returns trigger language plpgsql security definer set search_path = public as $$
+declare current_capacity integer; active_count integer;
+begin
+  select capacity into current_capacity from public.seasons where id = new.season_id for update;
+  select count(*) into active_count from public.registrations where season_id = new.season_id and status not in ('rejected','cancelled');
+  if active_count >= current_capacity then raise exception 'season_capacity_reached'; end if;
+  return new;
+end; $$;
+create trigger registrations_capacity_guard before insert on public.registrations for each row execute function public.enforce_season_capacity();
+insert into storage.buckets (id, name, public) values ('slips', 'slips', false) on conflict (id) do nothing;
+create policy "users upload own slips" on storage.objects for insert to authenticated with check (bucket_id = 'slips' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "staff read slips" on storage.objects for select to authenticated using (bucket_id = 'slips' and public.is_staff());

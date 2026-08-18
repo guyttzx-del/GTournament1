@@ -1,0 +1,3 @@
+-- Run after 002_competition_and_payments.sql and after approving 32 registrations.
+-- Group and fixture generation is intentionally performed by a server-side service,
+-- not by an unrestricted SQL seed, so assignments remain auditable.
