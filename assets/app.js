@@ -208,7 +208,13 @@ document.addEventListener('click', async (event) => {
     const ok = await requestPage(link.href);
     if (!ok) showAjaxStatus('ระบบหลักยังไม่พร้อม กรุณาตรวจสอบข้อความบนหน้าเว็บ', 'error');
   }
-  catch (error) { showAjaxStatus(error instanceof Error ? error.message : 'ระบบขัดข้อง กรุณาลองใหม่'); }
+  catch (error) {
+    if (error instanceof Error && error.message.includes('(404)')) {
+      window.location.assign(link.href);
+      return;
+    }
+    showAjaxStatus(error instanceof Error ? error.message : 'ระบบขัดข้อง กรุณาลองใหม่');
+  }
   finally { document.body.dataset.pageBusy = 'false'; document.body.classList.remove('is-loading'); }
 });
 
