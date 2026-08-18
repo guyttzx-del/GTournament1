@@ -119,3 +119,23 @@ if (playerSearchCard && playerSearchButton && playerSearchInput) {
     finally { playerSearchButton.disabled = false; }
   });
 }
+
+document.querySelectorAll('.admin-season-item').forEach((seasonCard) => {
+  const editLink = seasonCard.querySelector('a[href*="edit_season="]');
+  const csrfSource = seasonCard.querySelector('input[name="csrf_token"]');
+  if (!editLink || !csrfSource || seasonCard.querySelector('[data-delete-season]')) return;
+  const seasonId = new URL(editLink.href, window.location.href).searchParams.get('edit_season');
+  if (!seasonId) return;
+  const form = document.createElement('form');
+  form.method = 'post'; form.dataset.deleteSeason = 'true';
+  form.innerHTML = '<input type="hidden" name="action" value="delete_season"><input type="hidden" name="season_id"><input type="hidden" name="csrf_token">';
+  form.querySelector('input[name="season_id"]').value = seasonId;
+  form.querySelector('input[name="csrf_token"]').value = csrfSource.value;
+  const button = document.createElement('button');
+  button.type = 'submit'; button.className = 'btn btn-outline'; button.textContent = 'ลบ Season'; button.dataset.deleteSeason = 'true';
+  form.append(button); seasonCard.querySelector('.button-row')?.append(form);
+});
+
+document.addEventListener('submit', (event) => {
+  if (event.target instanceof HTMLFormElement && event.target.dataset.deleteSeason === 'true' && !window.confirm('ยืนยันลบ Season นี้? ระบบจะลบได้เฉพาะ Season ที่ไม่มีใบสมัครหรือ Match เท่านั้น')) event.preventDefault();
+});

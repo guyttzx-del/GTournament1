@@ -156,6 +156,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             supabase()->rpc('append_audit_log', ['p_actor_id' => $user['id'], 'p_action' => 'season.archived', 'p_entity_type' => 'season', 'p_entity_id' => $seasonId]);
             flash('success', 'Archive Season แล้ว'); header('Location: ?view=admin'); exit;
         }
+        if ($action === 'delete_season') {
+            require_admin();
+            $seasonId = trim((string) ($_POST['season_id'] ?? ''));
+            if (!preg_match('/^[0-9a-f-]{36}$/i', $seasonId)) throw new InvalidArgumentException('Season ID ไม่ถูกต้อง');
+            supabase()->rpc('admin_delete_season', ['p_season_id' => $seasonId]);
+            flash('success', 'ลบ Season ที่ไม่มีข้อมูลผูกอยู่แล้ว'); header('Location: ?view=admin'); exit;
+        }
         if ($action === 'change_staff_role') {
             require_admin();
             $staffUserId = trim((string) ($_POST['staff_user_id'] ?? ''));
